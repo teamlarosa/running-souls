@@ -1,0 +1,104 @@
+/* =========================================================================
+   tokens.css — design tokens lifted from the supplied mockup.
+   Every colour, radius and shadow in the app comes from here.
+   ========================================================================= */
+
+:root {
+  /* ---- Surfaces: navy field, layered cards ------------------------------ */
+  --bg: #141a2e;
+  --bg-deep: #10162a;
+  --surface-1: #1d2540;        /* outer card */
+  --surface-2: #232d4d;        /* nested input card */
+  --surface-3: #2a3557;        /* pill / row */
+  --surface-raised: #2e3960;
+
+  /* ---- Borders --------------------------------------------------------- */
+  --border: rgba(255, 255, 255, 0.07);
+  --border-strong: rgba(255, 255, 255, 0.13);
+  --border-focus: #d6ff3f;
+
+  /* ---- Accent: lime ---------------------------------------------------- */
+  --lime: #d6ff3f;
+  --lime-dim: #b8dd2f;
+  --lime-ink: #101828;         /* text on lime */
+  --lime-glow: rgba(214, 255, 63, 0.18);
+
+  /* ---- Hero: teal gradient --------------------------------------------- */
+  --teal-from: #178072;
+  --teal-to: #0c5a56;
+
+  /* ---- Text ------------------------------------------------------------ */
+  --text: #ffffff;
+  --text-muted: #98a2b8;
+  --text-dim: #6b7691;
+
+  /* ---- Semantic -------------------------------------------------------- */
+  --warn: #ffc574;
+  --warn-bg: rgba(255, 197, 116, 0.13);
+  --danger: #ff8a8a;
+  --danger-bg: rgba(255, 138, 138, 0.13);
+  --info: #9b9bff;
+  --info-bg: rgba(155, 155, 255, 0.14);
+  --good: #6ee7b7;
+  --good-bg: rgba(110, 231, 183, 0.13);
+
+  /* ---- Icon badge pastels (from the mockup) ---------------------------- */
+  --badge-lavender-bg: rgba(155, 155, 255, 0.16);
+  --badge-lavender-ink: #a9a9ff;
+  --badge-peach-bg: rgba(255, 197, 116, 0.16);
+  --badge-peach-ink: #ffc574;
+  --badge-pink-bg: rgba(255, 138, 138, 0.16);
+  --badge-pink-ink: #ff8a8a;
+  --badge-mint-bg: rgba(110, 231, 183, 0.16);
+  --badge-mint-ink: #6ee7b7;
+  --badge-sky-bg: rgba(125, 211, 252, 0.16);
+  --badge-sky-ink: #7dd3fc;
+
+  /* ---- Radii ----------------------------------------------------------- */
+  --r-sm: 10px;
+  --r-md: 14px;
+  --r-lg: 18px;
+  --r-xl: 24px;
+  --r-pill: 999px;
+
+  /* ---- Spacing --------------------------------------------------------- */
+  --s-1: 4px;
+  --s-2: 8px;
+  --s-3: 12px;
+  --s-4: 16px;
+  --s-5: 20px;
+  --s-6: 24px;
+  --s-7: 32px;
+  --s-8: 40px;
+
+  /* ---- Shadows --------------------------------------------------------- */
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.2), 0 8px 24px rgba(0, 0, 0, 0.18);
+  --shadow-hero: 0 12px 32px rgba(12, 90, 86, 0.35);
+  --shadow-lime: 0 6px 20px rgba(214, 255, 63, 0.22);
+
+  /* ---- Type ------------------------------------------------------------ */
+  --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+    Helvetica, Arial, sans-serif;
+  --font-num: 'Inter', ui-monospace, 'SF Mono', Menlo, monospace;
+
+  --fs-hero: clamp(2.25rem, 6vw, 3rem);
+  --fs-h1: clamp(1.5rem, 3vw, 1.875rem);
+  --fs-h2: 1.0625rem;
+  --fs-body: 0.9375rem;
+  --fs-sm: 0.8125rem;
+  --fs-xs: 0.75rem;
+
+  /* ---- Layout ---------------------------------------------------------- */
+  --max-w: 1180px;
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Respect reduced-motion everywhere. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
+}
