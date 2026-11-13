@@ -21,9 +21,26 @@ import { AboutCard } from './features/AboutCard';
 import './styles/components.css';
 import './styles/app.css';
 import './styles/features.css';
+import './styles/calculator.css';
 
 export function App() {
   const calc = useCalculator();
+
+  const handleCalculate = () => {
+    calc.calculate();
+
+    // Close the phone keyboard so the result is visible.
+    if (document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
+    }
+
+    // On the single-column (phone) layout, bring the result into view.
+    if (window.matchMedia('(max-width: 999px)').matches) {
+      window.setTimeout(() => {
+        document.getElementById('result')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 50);
+    }
+  };
 
   return (
     <div className="shell">
@@ -42,10 +59,10 @@ export function App() {
       <main className="main">
         <div className="layout">
           <div className="layout__aside">
-            <InputPanel calc={calc} />
+            <InputPanel calc={calc} onCalculate={handleCalculate} />
           </div>
 
-          <div className="layout__results">
+          <div className={`layout__results${calc.stale ? ' results--stale' : ''}`}>
             <HeroPace calc={calc} />
             <TrainingPaces calc={calc} />
             <ConditionsCard calc={calc} />
