@@ -1,0 +1,186 @@
+/* =========================================================================
+   calculator.css — time/pace digit boxes, lime Calculate button,
+   hero prompt + stale states. Uses tokens.css only.
+   ========================================================================= */
+
+/* ---- Digit groups (hh:mm:ss and mm:ss) -------------------------------- */
+.dg {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  padding: var(--s-3) var(--s-4) var(--s-4);
+  transition: opacity 0.2s var(--ease), border-color 0.2s var(--ease),
+    box-shadow 0.2s var(--ease);
+}
+
+.dg:focus-within {
+  border-color: var(--border-focus);
+  box-shadow: 0 0 0 3px var(--lime-glow);
+}
+
+.dg--dim {
+  opacity: 0.5;
+}
+
+.dg--dim:focus-within {
+  opacity: 1;
+}
+
+.dg--error {
+  border-color: var(--danger);
+}
+
+.dg__title {
+  display: block;
+  margin-bottom: var(--s-2);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.dg__row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-2);
+}
+
+.dg__cell {
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  max-width: 96px;
+}
+
+.dg__input {
+  width: 100%;
+  height: 56px;
+  padding: 0;
+  text-align: center;
+  font-family: var(--font);
+  font-size: 1.5rem; /* 16px+ stops iOS zooming in on focus */
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+  background: var(--surface-3);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  outline: none;
+  transition: border-color 0.15s var(--ease), background 0.15s var(--ease);
+}
+
+.dg__input::placeholder {
+  color: var(--text-dim);
+}
+
+.dg__input:focus {
+  background: var(--surface-raised);
+  border-color: var(--border-focus);
+}
+
+.dg__sep {
+  font-size: 1.5rem;
+  font-weight: 600;
+  line-height: 56px;
+  color: var(--text-dim);
+}
+
+.dg__cap {
+  font-size: var(--fs-xs);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+.dg__trailing {
+  align-self: flex-start;
+  margin-left: auto;
+  padding-left: var(--s-2);
+  font-size: var(--fs-sm);
+  line-height: 56px;
+  white-space: nowrap;
+  color: var(--text-muted);
+}
+
+.dg__error {
+  margin: var(--s-2) 0 0;
+  font-size: var(--fs-sm);
+  color: var(--danger);
+}
+
+/* ---- Lime Calculate button -------------------------------------------- */
+.calc-btn {
+  width: 100%;
+  height: 56px;
+  margin-top: var(--s-5);
+  border: 0;
+  border-radius: var(--r-xl);
+  background: var(--lime);
+  color: var(--lime-ink);
+  font-family: var(--font);
+  font-size: 1.0625rem;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: var(--shadow-lime);
+  transition: transform 0.15s var(--ease), background 0.15s var(--ease),
+    box-shadow 0.2s var(--ease);
+}
+
+.calc-btn:hover {
+  background: var(--lime-dim);
+}
+
+.calc-btn:active {
+  transform: scale(0.985);
+}
+
+.calc-btn:focus-visible {
+  outline: 3px solid var(--text);
+  outline-offset: 3px;
+}
+
+/* Inputs changed since the last calculation: nudge toward the button. */
+.calc-btn--attn {
+  box-shadow: 0 0 0 4px var(--lime-glow), var(--shadow-lime);
+}
+
+/* ---- Hero: prompt and stale states ------------------------------------ */
+#result {
+  scroll-margin-top: 12px;
+}
+
+.hero--empty .hero__prompt {
+  margin: 0;
+  padding: var(--s-4) 0 var(--s-2);
+  font-size: 1.25rem;
+  font-weight: 600;
+  line-height: 1.35;
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.hero--stale {
+  opacity: 0.75;
+  filter: grayscale(0.85) brightness(0.85);
+}
+
+.hero {
+  transition: opacity 0.25s var(--ease), filter 0.25s var(--ease);
+}
+
+.hero__note {
+  margin: var(--s-4) 0 0;
+  font-size: var(--fs-sm);
+  color: rgba(255, 255, 255, 0.9);
+}
+
+/* ---- Everything below the hero greys out while inputs are stale -------- */
+.layout__results > * {
+  transition: opacity 0.25s var(--ease), filter 0.25s var(--ease);
+}
+
+.layout__results.results--stale > :not(.hero) {
+  opacity: 0.45;
+  filter: grayscale(0.6);
+}
