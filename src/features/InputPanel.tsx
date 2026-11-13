@@ -1,14 +1,13 @@
 /**
- * InputPanel.tsx — the left column. Mirrors the mockup's card stack:
- * unit toggle, distance, time-or-pace, plus optional conditions.
+ * InputPanel.tsx — the left column.
  *
- * Interaction note: the mockup shows BOTH a Time and a Pace field. Because the
- * engine needs exactly one of the two (distance is already pinned), typing in
- * one field makes it authoritative and clears the other. That keeps the visual
- * layout while removing the ambiguity of two conflicting values.
+ * Distance, then a finish-time group (hh:mm:ss) and a pace group (mm:ss) made of
+ * separate number-pad boxes, so phones never need a colon key. Empty boxes
+ * count as zero. The group edited last is the one that gets solved; the other
+ * dims. The lime Calculate button (or Enter in any box) runs the calculation.
  */
 
-import type { ReactNode } from 'react';
+import { Fragment, useRef, type ReactNode } from 'react';
 import {
   DISTANCES,
   PICKER_ORDER,
@@ -16,7 +15,8 @@ import {
   type UnitSystem,
 } from '@running/engine';
 import type { Calculator } from '../state';
-import { distanceDisplay, paceClock, paceToDisplay, unitLabel } from '../format';
+import { hasPaceInput, hasTimeInput } from '../state';
+import { distanceDisplay, unitLabel } from '../format';
 import { Field, Select, Segmented } from '../components/Ui';
 import { IconFlame, IconMountain, IconSlope } from '../components/Icons';
 
@@ -27,46 +27,133 @@ const QUICK_PICKS: readonly { id: DistanceId; label: string }[] = [
   { id: 'marathon', label: 'Marathon' },
 ];
 
-export function InputPanel({ calc }: { calc: Calculator }) {
-  const { state, derived, setField, setCondition, setUnit } = calc;
-  const unit = unitLabel(state.unit);
+interface DigitBox {
+  id: string;
+  caption: string;
+  value: string;
+  onChange: (digits: string) => void;
+}
+
+/** A row of 1–3 digit boxes: digits only, number pad on phones, auto-advance. */
+function DigitGroup({
+  title,
+  boxes,
+  dimmed,
+  error,
+  trailing,
+}: {
+  title: string;
+  boxes: readonly DigitBox[];
+  dimmed: boolean;
+  error: string | null;
+  trailing?: string;
+}) {
+  const refs = useRef<(HTMLInputElement | null)[]>([]);
+
+  const handleChange = (index: number, raw: string) => {
+    const digits = raw.replace(/\D/g, '').slice(0, 2);
+    boxes[index]?.onChange(digits);
+    if (digits.length === 2 && index < boxes.length - 1) {
+      refs.current[index + 1]?.focus();
+    }
+  };
+
+  const handleKeyDown = (index: number, key: string, value: string) => {
+    if (key === 'Backspace' && value === '' && index > 0) {
+      refs.current[index - 1]?.focus();
+    }
+  };
+
+  const classes = ['dg', dimmed ? 'dg--dim' : '', error ? 'dg--error' : '']
+    .filter(Boolean)
+    .join(' ');
+
+  return (
+    <div className={classes} role="group" aria-label={title}>
+      <span className="dg__title">{title}</span>
+
+      <div className="dg__row">
+        {boxes.map((box, index) => (
+          <Fragment key={box.id}>
+            {index > 0 ? (
+              <span className="dg__sep" aria-hidden="true">
+                :
+              </span>
+            ) : null}
+            <label className="dg__cell" htmlFor={box.id}>
+              <input
+                id={box.id}
+                ref={(el) => {
+                  refs.current[index] = el;
+                }}
+                className="dg__input"
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                autoComplete="off"
+                enterKeyHint="go"
+                maxLength={2}
+                placeholder="00"
+                value={box.value}
+                aria-invalid={error ? true : undefined}
+                onChange={(e) => handleChange(index, e.target.value)}
+                onKeyDown={(e) => handleKeyDown(index, e.key, e.currentTarget.value)}
+                onFocus={(e) => e.currentTarget.select()}
+              />
+              <span className="dg__cap">{box.caption}</span>
+            </label>
+          </Fragment>
+        ))}
+        {trailing ? <span className="dg__trailing">{trailing}</span> : null}
+      </div>
+
+      {error ? (
+        <p className="dg__error" role="alert">
+          {error}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+export function InputPanel({
+  calc,
+  onCalculate,
+}: {
+  calc: Calculator;
+  onCalculate: () => void;
+}) {
+  const { draft, errors, solveFor, stale, setInput, setCondition, setUnit } = calc;
+  const unit = unitLabel(draft.unit);
 
   const distanceLabel =
-    state.distanceId === 'custom'
+    draft.distanceId === 'custom'
       ? 'Custom distance'
-      : `${DISTANCES[state.distanceId].short} · ${distanceDisplay(
-          DISTANCES[state.distanceId].m,
-          state.unit,
+      : `${DISTANCES[draft.distanceId].short} · ${distanceDisplay(
+          DISTANCES[draft.distanceId].m,
+          draft.unit,
         )} ${unit}`;
 
-  const enterTime = (value: string) => {
-    setField('timeStr', value);
-    if (value.trim() !== '' && state.paceStr !== '') setField('paceStr', '');
-    setField('active', 'time');
+  // Dim whichever group is being ignored (only once the other has a value).
+  const dimTime = solveFor === 'pace' && hasPaceInput(draft);
+  const dimPace = solveFor === 'time' && hasTimeInput(draft);
+
+  // Enter in any text box behaves exactly like tapping Calculate.
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLElement>) => {
+    if (e.key === 'Enter' && e.target instanceof HTMLInputElement) {
+      e.preventDefault();
+      onCalculate();
+    }
   };
-
-  const enterPace = (value: string) => {
-    setField('paceStr', value);
-    if (value.trim() !== '' && state.timeStr !== '') setField('timeStr', '');
-    setField('active', 'pace');
-  };
-
-  const derivedPaceHint =
-    state.active === 'time' && derived.spm !== null
-      ? `= ${paceClock(paceToDisplay(derived.spm, state.unit))} /${unit}`
-      : undefined;
-
-  const errorFor = (field: 'distance' | 'duration' | 'pace') =>
-    derived.fieldError?.field === field ? derived.fieldError.message : null;
 
   return (
     <div className="stack">
-      <section className="card">
+      <section className="card" onKeyDown={handleKeyDown}>
         <header className="card-head">
           <h2 className="card-title">Your run</h2>
           <Segmented<UnitSystem>
             ariaLabel="Distance units"
-            value={state.unit}
+            value={draft.unit}
             onChange={setUnit}
             options={[
               { value: 'imperial', label: 'mi' },
@@ -81,27 +168,27 @@ export function InputPanel({ calc }: { calc: Calculator }) {
             <Select
               id="distance"
               label="Choose your distance"
-              value={state.distanceId}
-              onChange={(next) => setField('distanceId', next as DistanceId | 'custom')}
+              value={draft.distanceId}
+              onChange={(next) => setInput({ distanceId: next as DistanceId | 'custom' })}
             >
               {PICKER_ORDER.map((id) => (
                 <option key={id} value={id}>
-                  {DISTANCES[id].short} · {distanceDisplay(DISTANCES[id].m, state.unit)} {unit}
+                  {DISTANCES[id].short} · {distanceDisplay(DISTANCES[id].m, draft.unit)} {unit}
                 </option>
               ))}
               <option value="custom">Custom distance…</option>
             </Select>
 
-            {state.distanceId === 'custom' ? (
+            {draft.distanceId === 'custom' ? (
               <Field
                 id="custom-distance"
                 label="Distance"
-                value={state.customDistance}
-                onChange={(next) => setField('customDistance', next)}
-                placeholder={state.unit === 'imperial' ? '13.1' : '21.097'}
+                value={draft.customDistance}
+                onChange={(next) => setInput({ customDistance: next })}
+                placeholder={draft.unit === 'imperial' ? '13.1' : '21.097'}
                 suffix={unit}
                 inputMode="decimal"
-                error={errorFor('distance')}
+                error={errors.distance}
               />
             ) : null}
 
@@ -111,8 +198,8 @@ export function InputPanel({ calc }: { calc: Calculator }) {
                   key={pick.id}
                   type="button"
                   className="pill"
-                  aria-pressed={state.distanceId === pick.id}
-                  onClick={() => setField('distanceId', pick.id)}
+                  aria-pressed={draft.distanceId === pick.id}
+                  onClick={() => setInput({ distanceId: pick.id })}
                 >
                   {pick.label}
                 </button>
@@ -126,30 +213,57 @@ export function InputPanel({ calc }: { calc: Calculator }) {
 
           {/* ---- Time or pace ------------------------------------------- */}
           <div className="stack" style={{ gap: 'var(--s-3)' }}>
-            <Field
-              id="time"
-              label="Time"
-              value={state.timeStr}
-              onChange={enterTime}
-              placeholder="0:00"
-              suffix="H:MM:SS"
-              inputMode="numeric"
-              error={errorFor('duration')}
+            <DigitGroup
+              title="Finish time"
+              dimmed={dimTime}
+              error={errors.time}
+              boxes={[
+                {
+                  id: 'time-h',
+                  caption: 'hh',
+                  value: draft.timeH,
+                  onChange: (v) => setInput({ timeH: v, active: 'time' }),
+                },
+                {
+                  id: 'time-m',
+                  caption: 'mm',
+                  value: draft.timeM,
+                  onChange: (v) => setInput({ timeM: v, active: 'time' }),
+                },
+                {
+                  id: 'time-s',
+                  caption: 'ss',
+                  value: draft.timeS,
+                  onChange: (v) => setInput({ timeS: v, active: 'time' }),
+                },
+              ]}
             />
 
-            <Field
-              id="pace"
-              label="Pace"
-              value={state.paceStr}
-              onChange={enterPace}
-              placeholder="—:—"
-              suffix={`min / ${unit}`}
-              inputMode="numeric"
-              hint={derivedPaceHint}
-              error={errorFor('pace')}
+            <DigitGroup
+              title="Pace"
+              dimmed={dimPace}
+              error={errors.pace}
+              trailing={`/ ${unit}`}
+              boxes={[
+                {
+                  id: 'pace-m',
+                  caption: 'mm',
+                  value: draft.paceM,
+                  onChange: (v) => setInput({ paceM: v, active: 'pace' }),
+                },
+                {
+                  id: 'pace-s',
+                  caption: 'ss',
+                  value: draft.paceS,
+                  onChange: (v) => setInput({ paceS: v, active: 'pace' }),
+                },
+              ]}
             />
 
-            <p className="field__hint">Enter either a time or a pace — whichever you have.</p>
+            <p className="field__hint">
+              Enter either a time or a pace. The one you edit last is used; empty boxes count as
+              zero.
+            </p>
           </div>
         </div>
 
@@ -164,13 +278,13 @@ export function InputPanel({ calc }: { calc: Calculator }) {
               <ConditionRow
                 icon={<IconSlope size={16} />}
                 title="Grade"
-                enabled={state.conditions.gradeOn}
+                enabled={draft.conditions.gradeOn}
                 onToggle={(next) => setCondition('gradeOn', next)}
               >
                 <Field
                   id="grade"
                   label="Average grade"
-                  value={state.conditions.gradePct}
+                  value={draft.conditions.gradePct}
                   onChange={(next) => setCondition('gradePct', next)}
                   suffix="%"
                   inputMode="decimal"
@@ -180,14 +294,14 @@ export function InputPanel({ calc }: { calc: Calculator }) {
               <ConditionRow
                 icon={<IconFlame size={16} />}
                 title="Heat & humidity"
-                enabled={state.conditions.heatOn}
+                enabled={draft.conditions.heatOn}
                 onToggle={(next) => setCondition('heatOn', next)}
               >
                 <div className="cond-grid">
                   <Field
                     id="temp"
                     label="Temperature"
-                    value={state.conditions.tempF}
+                    value={draft.conditions.tempF}
                     onChange={(next) => setCondition('tempF', next)}
                     suffix="°F"
                     inputMode="decimal"
@@ -195,7 +309,7 @@ export function InputPanel({ calc }: { calc: Calculator }) {
                   <Field
                     id="dew"
                     label="Dew point"
-                    value={state.conditions.dewPointF}
+                    value={draft.conditions.dewPointF}
                     onChange={(next) => setCondition('dewPointF', next)}
                     suffix="°F"
                     inputMode="decimal"
@@ -206,13 +320,13 @@ export function InputPanel({ calc }: { calc: Calculator }) {
               <ConditionRow
                 icon={<IconMountain size={16} />}
                 title="Altitude"
-                enabled={state.conditions.altitudeOn}
+                enabled={draft.conditions.altitudeOn}
                 onToggle={(next) => setCondition('altitudeOn', next)}
               >
                 <Field
                   id="elevation"
                   label="Race elevation"
-                  value={state.conditions.elevationM}
+                  value={draft.conditions.elevationM}
                   onChange={(next) => setCondition('elevationM', next)}
                   suffix="m"
                   inputMode="numeric"
@@ -221,6 +335,15 @@ export function InputPanel({ calc }: { calc: Calculator }) {
             </div>
           </details>
         </div>
+
+        {/* ---- The action --------------------------------------------- */}
+        <button
+          type="button"
+          className={`calc-btn${stale ? ' calc-btn--attn' : ''}`}
+          onClick={onCalculate}
+        >
+          Calculate
+        </button>
       </section>
     </div>
   );
