@@ -1,11 +1,12 @@
 /**
- * TrainingPaces.tsx — the "Training Paces" card, read-only (decision 2).
+ * TrainingPaces.tsx — the "Training Paces" card.
  *
  * Runs two independent strategies (Daniels VDOT and goal-race-pace deltas) and
- * shows the CONSENSUS: the band where both agree, plus an agreement rating.
+ * shows the CONSENSUS between them.
  *
- * Where strategies converge the number is trustworthy. Where they diverge,
- * showing that is the honest answer rather than hiding behind one house formula.
+ * Easy is a range. Marathon and Tempo (threshold) are single paces — Daniels
+ * prescribes those as one pace, not a band — taken as the middle of where the
+ * two strategies overlap (or of the full span if they don't overlap).
  */
 
 import { useMemo, type ReactNode } from 'react';
@@ -16,30 +17,42 @@ import {
   type ZoneId,
   type ZoneTable,
 } from '@running/engine';
-import { Card, DataRow, Disclosure, IconBadge, Notice, Tag } from '../components/Ui';
+import { Card, DataRow, Disclosure, IconBadge, Notice } from '../components/Ui';
 import { IconActivity, IconTimer, IconWaves } from '../components/Icons';
 import type { Calculator } from '../state';
 import { paceClock, paceToDisplay, paceRange, unitLabel } from '../format';
 
 const ZONE_META: Record<
   ZoneId,
-  { label: string; tone: 'lavender' | 'peach' | 'pink'; icon: ReactNode }
+  { label: string; tone: 'lavender' | 'peach' | 'pink'; icon: ReactNode; single: boolean }
 > = {
-  easy: { label: 'Easy run', tone: 'lavender', icon: <IconWaves size={18} /> },
-  marathon: { label: 'Marathon', tone: 'peach', icon: <IconActivity size={18} /> },
-  threshold: { label: 'Tempo', tone: 'peach', icon: <IconActivity size={18} /> },
-  interval: { label: 'Interval', tone: 'pink', icon: <IconTimer size={18} /> },
-  repetition: { label: 'Repetition', tone: 'pink', icon: <IconTimer size={18} /> },
+  easy: { label: 'Easy run', tone: 'lavender', icon: <IconWaves size={18} />, single: false },
+  marathon: { label: 'Marathon', tone: 'peach', icon: <IconActivity size={18} />, single: true },
+  threshold: { label: 'Tempo', tone: 'pink', icon: <IconTimer size={18} />, single: true },
+  interval: { label: 'Interval', tone: 'pink', icon: <IconTimer size={18} />, single: false },
+  repetition: { label: 'Repetition', tone: 'pink', icon: <IconTimer size={18} />, single: false },
 };
 
-/** Zones worth showing in the compact card; the rest go in the table. */
-const PRIMARY_ZONES: readonly ZoneId[] = ['easy', 'threshold', 'interval'];
+/** Zones shown in the compact card, slowest to fastest; the rest go in the table. */
+const PRIMARY_ZONES: readonly ZoneId[] = ['easy', 'marathon', 'threshold'];
 
 const AGREEMENT_COPY = {
   strong: 'strategies agree closely',
   moderate: 'strategies broadly agree',
   poor: 'strategies disagree',
 } as const;
+
+/** Middle of the agreed band, or of the full span when the strategies don't overlap. */
+const centreSpm = (zone: {
+  agreedSlowSpm: number | null;
+  agreedFastSpm: number | null;
+  unionSlowSpm: number;
+  unionFastSpm: number;
+}): number => {
+  const slow = zone.agreedSlowSpm ?? zone.unionSlowSpm;
+  const fast = zone.agreedFastSpm ?? zone.unionFastSpm;
+  return (slow + fast) / 2;
+};
 
 export function TrainingPaces({ calc }: { calc: Calculator }) {
   const { derived, computedAt } = calc;
@@ -87,12 +100,16 @@ export function TrainingPaces({ calc }: { calc: Calculator }) {
   const anyDisagreement = model.consensus.zones.some((zone) => zone.agreement === 'poor');
 
   return (
-    <Card title="Training paces" aside={<Tag tone="provisional">read-only preview</Tag>}>
+    <Card title="Training paces" note={`suggested · min/${unit}`}>
       <div className="tp-list">
         {PRIMARY_ZONES.map((id) => {
           const zone = zoneById.get(id);
           const meta = ZONE_META[id];
           if (!zone) return null;
+
+          const value = meta.single
+            ? paceClock(paceToDisplay(centreSpm(zone), calc.state.unit))
+            : paceRange(zone.unionSlowSpm, zone.unionFastSpm, calc.state.unit);
 
           return (
             <DataRow
@@ -100,7 +117,7 @@ export function TrainingPaces({ calc }: { calc: Calculator }) {
               badge={<IconBadge tone={meta.tone}>{meta.icon}</IconBadge>}
               label={meta.label}
               meta={AGREEMENT_COPY[zone.agreement]}
-              value={paceRange(zone.unionSlowSpm, zone.unionFastSpm, calc.state.unit)}
+              value={value}
             />
           );
         })}
@@ -152,7 +169,8 @@ export function TrainingPaces({ calc }: { calc: Calculator }) {
 
         <p style={{ marginTop: 'var(--s-3)' }}>
           <strong>Agreed</strong> is where both methodologies overlap;{' '}
-          <strong>widest</strong> is the full span across them. VDOT is an effective
+          <strong>widest</strong> is the full span across them. Marathon and Tempo above
+          are shown as a single pace: the middle of the agreed band. VDOT is an effective
           fitness index that absorbs running economy — it is <em>not</em> measured VO₂max.
         </p>
         <p>
