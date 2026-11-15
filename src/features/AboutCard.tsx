@@ -3,7 +3,8 @@
  *
  * This is a product feature, not hygiene. The differentiator is that every
  * number is traceable, so the citations have to be reachable from the UI rather
- * than buried in a repository.
+ * than buried in a repository. The content sits in one accordion, closed by
+ * default, so it doesn't push the results down the page.
  */
 
 import { CALIBRATION, ENGINE_VERSION, SOURCES, config } from '@running/engine';
@@ -26,7 +27,7 @@ const MODEL_COPY: readonly { key: string; label: string; what: string; source: s
   {
     key: 'riegel',
     label: 'Predictions',
-    what: 'Time scales as the 1.06 power of distance. That exponent is a population average; it assumes equal training for both distances.',
+    what: 'Time scales as a power of distance (default exponent 1.06). That exponent is a population average; it assumes equal training for both distances.',
     source: SOURCES.riegel.citation,
   },
   {
@@ -59,28 +60,31 @@ const toneFor = (key: string): Calibration | 'neutral' => {
 export function AboutCard() {
   return (
     <Card title="How we calculate this">
-      <p className="muted" style={{ fontSize: 'var(--fs-sm)', lineHeight: 1.6 }}>
-        Every number here is computed from a published model, and every model carries
-        its citation. Where a model is an estimate, a heuristic, or extrapolating past
-        its valid range, the result says so rather than smoothing it over.
-      </p>
+      <Disclosure title="Models, sources and limits">
+        <p className="muted" style={{ fontSize: 'var(--fs-sm)', lineHeight: 1.6 }}>
+          Every number here is computed from a published model, and every model carries
+          its citation. Where a model is an estimate, a heuristic, or extrapolating past
+          its valid range, the result says so rather than smoothing it over.
+        </p>
 
-      <div className="about-list">
-        {MODEL_COPY.map((model) => (
-          <div className="about-row" key={model.key}>
-            <div className="about-row__head">
-              <span className="about-row__label">{model.label}</span>
-              <Tag tone={toneFor(model.key)}>
-                {CALIBRATION[model.key] ?? 'provisional'}
-              </Tag>
+        <div className="about-list">
+          {MODEL_COPY.map((model) => (
+            <div className="about-row" key={model.key}>
+              <div className="about-row__head">
+                <span className="about-row__label">{model.label}</span>
+                <Tag tone={toneFor(model.key)}>
+                  {CALIBRATION[model.key] ?? 'provisional'}
+                </Tag>
+              </div>
+              <p className="about-row__what">{model.what}</p>
+              <p className="about-row__source">{model.source}</p>
             </div>
-            <p className="about-row__what">{model.what}</p>
-            <p className="about-row__source">{model.source}</p>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
 
-      <Disclosure title="What this deliberately does not do">
+        <p style={{ marginTop: 'var(--s-4)' }}>
+          <strong>What this deliberately does not do</strong>
+        </p>
         <p>
           <strong>It does not claim to be the most accurate.</strong> That is not a claim
           anyone can support. The claim here is that the arithmetic is transparent and
@@ -101,12 +105,12 @@ export function AboutCard() {
           heat advice are starting points, not prescriptions, and nothing here is medical
           advice.
         </p>
-      </Disclosure>
 
-      <p className="about-version">
-        engine v{ENGINE_VERSION} · grade v{config.GRADE.version} · heat v
-        {config.HEAT.version} · altitude v{config.ALTITUDE.version}
-      </p>
+        <p className="about-version">
+          engine v{ENGINE_VERSION} · grade v{config.GRADE.version} · heat v
+          {config.HEAT.version} · altitude v{config.ALTITUDE.version}
+        </p>
+      </Disclosure>
     </Card>
   );
 }
