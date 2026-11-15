@@ -88,12 +88,17 @@ export const predictRiegel = (input: RiegelInput): Result<Prediction> => {
 
   const seconds = t1 * ratio ** k;
 
-  // Uncertainty band widens with the extrapolation ratio.
+  // Uncertainty band widens with the SIZE of the jump, in either direction.
+  // A marathon -> mile prediction (ratio 0.04) is as big a leap as mile ->
+  // marathon (ratio 26). Comparing the raw ratio treated every shorter target
+  // as a tiny jump, so the band never widened.
+  const jump = ratio >= 1 ? ratio : 1 / ratio;
+
   const u = PREDICTION.uncertainty;
   const uncertaintyFraction =
-    ratio > RIEGEL.maxReliableRatio
+    jump > RIEGEL.maxReliableRatio
       ? u.extrapolationBeyond4x
-      : ratio > 2
+      : jump > 2
         ? u.interpolationWithin4x
         : u.interpolationWithin2x;
 
