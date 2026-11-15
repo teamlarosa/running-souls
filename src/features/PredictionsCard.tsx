@@ -1,22 +1,36 @@
 /**
  * PredictionsCard.tsx — race time prediction from the current result.
  *
- * Riegel at k=1.06 (decision 3). Every prediction carries its confidence band,
- * and extrapolations beyond 4x are flagged rather than presented as fact.
- * No consumer tool shows uncertainty; it is free credibility.
+ * Riegel (default k from the engine config). Every prediction carries its
+ * confidence band, which widens with the size of the distance jump in either
+ * direction. Extrapolations beyond 4x get an amber tag on the row, and the
+ * explanation lives in "How to read these".
  */
 
 import { useMemo } from 'react';
-import { DISTANCES, predictRiegel, type DistanceId } from '@running/engine';
-import { Card, Disclosure, Notice, Tag } from '../components/Ui';
+import { DISTANCES, config, predictRiegel, type DistanceId } from '@running/engine';
+import { Card, Disclosure, Tag } from '../components/Ui';
 import type { Calculator } from '../state';
 import { clock, distanceDisplay, unitLabel } from '../format';
 
 const TARGETS: readonly DistanceId[] = ['mile', '5000m', '10000m', 'half_marathon', 'marathon'];
 
+/** The word "extrapolated" in running text, styled like the amber row tag. */
+const warnWord = {
+  color: 'var(--warn)',
+  background: 'var(--warn-bg)',
+  padding: '1px 8px',
+  borderRadius: 'var(--r-pill)',
+  fontWeight: 600,
+  fontStyle: 'normal',
+} as const;
+
 export function PredictionsCard({ calc }: { calc: Calculator }) {
   const { derived, computedAt } = calc;
   const unit = unitLabel(calc.state.unit);
+
+  // Read from the engine so the label can never disagree with the maths.
+  const k = config.RIEGEL.defaultK;
 
   const rows = useMemo(() => {
     if (derived.distanceM === null || derived.seconds === null) return null;
@@ -51,12 +65,9 @@ export function PredictionsCard({ calc }: { calc: Calculator }) {
 
   // Which row corresponds to the distance already entered — within 0.5%.
   const sourceId = nearestTarget(derived.distanceM ?? 0);
-  const anyExtrapolated = rows.some(
-    (row) => 'extrapolated' in row && row.extrapolated && row.id !== sourceId,
-  );
 
   return (
-    <Card title="Race predictions" aside={<Tag tone="neutral">Riegel · k = 1.06</Tag>}>
+    <Card title="Race predictions" aside={<Tag tone="neutral">{`Riegel · k = ${k}`}</Tag>}>
       <div className="pred-list">
         {rows.map((row) => {
           if ('error' in row) {
@@ -90,30 +101,22 @@ export function PredictionsCard({ calc }: { calc: Calculator }) {
 
       <Disclosure title="How to read these">
         <p>
-          Predictions use the Riegel model: <code>T₂ = T₁ × (D₂ / D₁)^1.06</code>. The
-          1.06 exponent is a population average, not a personal one — it assumes you are
+          Predictions use the Riegel model: <code>{`T₂ = T₁ × (D₂ / D₁)^${k}`}</code>. The
+          exponent is a population average, not a personal one — it assumes you are
           equally trained for both distances.
         </p>
         <p>
           The <strong>±</strong> figure is a confidence band that widens as the
-          prediction moves further from your reference distance. Anything marked{' '}
-          <em>extrapolated</em> is beyond 4× the distance you entered; Riegel himself
-          cautioned against trusting those.
+          prediction moves further from your reference distance, whether the target is
+          longer or shorter. Anything marked <span style={warnWord}>extrapolated</span> is
+          more than 4× away from the distance you entered. Riegel himself cautioned
+          against trusting those, so treat them as a rough guide, not an expectation.
         </p>
         <p>
           Once you have three or more race results saved, the engine can fit your own
           endurance exponent instead of using the population average.
         </p>
       </Disclosure>
-
-      {anyExtrapolated ? (
-        <div style={{ marginTop: 'var(--s-3)' }}>
-          <Notice tone="warn">
-            Predictions this far from your reference distance read as a ceiling, not an
-            expectation. Enter a closer race result for a usable number.
-          </Notice>
-        </div>
-      ) : null}
 
       <p className="field__hint" style={{ marginTop: 'var(--s-3)' }}>
         Reference:{' '}
